@@ -7,6 +7,8 @@
  *  http://ethex.bet
  */
 ```
+You can find deploy history here: [VERSIONING.md](https://github.com/ethex-bet/ethex-contracts/blob/master/VERSIONING.md)
+
 ## Game Rules
 
 Ethex is an Ethereum [smart-contract](https://en.wikipedia.org/wiki/Ethereum#Smart_contracts) lottery game with huge prizes and big chances to win. The rules of the game are very simple and, with a wide range of prize combinations and full transparency through the use of smart-contracts, Ethex is an incredibly exciting game.
