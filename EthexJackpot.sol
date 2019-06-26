@@ -8,38 +8,41 @@ pragma solidity ^0.5.0;
  */
 
 contract EthexJackpot {
-    mapping(uint256 => address payable) tickets;
+    mapping(uint256 => address payable) public tickets;
     uint256 public numberEnd;
+    uint256 public firstNumber;
     uint256 public dailyAmount;
     uint256 public weeklyAmount;
     uint256 public monthlyAmount;
     uint256 public seasonalAmount;
-    bool private dailyProcessed;
-    bool private weeklyProcessed;
-    bool private monthlyProcessed;
-    bool private seasonalProcessed;
-    uint256 private dailyNumberStartPrev;
-    uint256 private weeklyNumberStartPrev;
-    uint256 private monthlyNumberStartPrev;
-    uint256 private seasonalNumberStartPrev;
-    uint256 private dailyStart;
-    uint256 private weeklyStart;
-    uint256 private monthlyStart;
-    uint256 private seasonalStart;
-    uint256 private dailyEnd;
-    uint256 private weeklyEnd;
-    uint256 private monthlyEnd;
-    uint256 private seasonalEnd;
-    uint256 private dailyNumberStart;
-    uint256 private weeklyNumberStart;
-    uint256 private monthlyNumberStart;
-    uint256 private seasonalNumberStart;
-    uint256 private dailyNumberEndPrev;
-    uint256 private weeklyNumberEndPrev;
-    uint256 private monthlyNumberEndPrev;
-    uint256 private seasonalNumberEndPrev;
-    address public lotoAddress;
+    bool public dailyProcessed;
+    bool public weeklyProcessed;
+    bool public monthlyProcessed;
+    bool public seasonalProcessed;
     address payable private owner;
+    address public lotoAddress;
+    address payable public newVersionAddress;
+    EthexJackpot previousContract;
+    uint256 public dailyNumberStartPrev;
+    uint256 public weeklyNumberStartPrev;
+    uint256 public monthlyNumberStartPrev;
+    uint256 public seasonalNumberStartPrev;
+    uint256 public dailyStart;
+    uint256 public weeklyStart;
+    uint256 public monthlyStart;
+    uint256 public seasonalStart;
+    uint256 public dailyEnd;
+    uint256 public weeklyEnd;
+    uint256 public monthlyEnd;
+    uint256 public seasonalEnd;
+    uint256 public dailyNumberStart;
+    uint256 public weeklyNumberStart;
+    uint256 public monthlyNumberStart;
+    uint256 public seasonalNumberStart;
+    uint256 public dailyNumberEndPrev;
+    uint256 public weeklyNumberEndPrev;
+    uint256 public monthlyNumberEndPrev;
+    uint256 public seasonalNumberEndPrev;
     
     event Jackpot (
         uint256 number,
@@ -53,10 +56,15 @@ contract EthexJackpot {
         uint256 number
     );
     
+    event SuperPrize (
+        uint256 amount,
+        address winner
+    );
+    
     uint256 constant DAILY = 5000;
     uint256 constant WEEKLY = 35000;
-    uint256 constant MONTHLY = 140000;
-    uint256 constant SEASONAL = 420000;
+    uint256 constant MONTHLY = 150000;
+    uint256 constant SEASONAL = 450000;
     uint256 constant PRECISION = 1 ether;
     uint256 constant DAILY_PART = 84;
     uint256 constant WEEKLY_PART = 12;
@@ -64,24 +72,17 @@ contract EthexJackpot {
     
     constructor() public payable {
         owner = msg.sender;
-        dailyStart = block.number / DAILY * DAILY;
-        dailyEnd = dailyStart + DAILY;
-        dailyProcessed = true;
-        weeklyStart = block.number / WEEKLY * WEEKLY;
-        weeklyEnd = weeklyStart + WEEKLY;
-        weeklyProcessed = true;
-        monthlyStart = block.number / MONTHLY * MONTHLY;
-        monthlyEnd = monthlyStart + MONTHLY;
-        monthlyProcessed = true;
-        seasonalStart = block.number / SEASONAL * SEASONAL;
-        seasonalEnd = seasonalStart + SEASONAL;
-        seasonalProcessed = true;
     }
-
-    function() external payable {}
     
+    function() external payable {}
+
     modifier onlyOwner {
         require(msg.sender == owner);
+        _;
+    }
+    
+    modifier onlyOwnerOrNewVersion {
+        require(msg.sender == owner || msg.sender == newVersionAddress);
         _;
     }
     
@@ -89,9 +90,9 @@ contract EthexJackpot {
         require(msg.sender == lotoAddress, "Loto only");
         _;
     }
-
-    function migrate(address payable newContract) external onlyOwner {
-        newContract.transfer(address(this).balance);
+    
+    function migrate() external onlyOwnerOrNewVersion {
+        newVersionAddress.transfer(address(this).balance);
     }
 
     function registerTicket(bytes16 id, address payable gamer) external onlyLoto {
@@ -100,53 +101,67 @@ contract EthexJackpot {
             setDaily();
             dailyNumberStart = number;
         }
+        else
+            if (dailyNumberStart == dailyNumberStartPrev)
+                dailyNumberStart = number;
         if (block.number >= weeklyEnd) {
             setWeekly();
             weeklyNumberStart = number;
         }
+        else
+            if (weeklyNumberStart == weeklyNumberStartPrev)
+                weeklyNumberStart = number;
         if (block.number >= monthlyEnd) {
             setMonthly();
             monthlyNumberStart = number;
         }
+        else
+            if (monthlyNumberStart == monthlyNumberStartPrev)
+                monthlyNumberStart = number;
         if (block.number >= seasonalEnd) {
             setSeasonal();
             seasonalNumberStart = number;
         }
+        else
+            if (seasonalNumberStart == seasonalNumberStartPrev)
+                seasonalNumberStart = number;
         numberEnd = number;
         tickets[number] = gamer;
         emit Ticket(id, number);
     }
-
+    
     function setLoto(address loto) external onlyOwner {
         lotoAddress = loto;
     }
-
+    
+    function setNewVersion(address payable newVersion) external onlyOwner {
+        newVersionAddress = newVersion;
+    }
+    
     function payIn() external payable {
         uint256 distributedAmount = dailyAmount + weeklyAmount + monthlyAmount + seasonalAmount;
-        uint256 amount = (address(this).balance - distributedAmount) / 4;
-        dailyAmount += amount;
-        weeklyAmount += amount;
-        monthlyAmount += amount;
-        seasonalAmount += amount;
+        if (distributedAmount < address(this).balance) {
+            uint256 amount = (address(this).balance - distributedAmount) / 4;
+            dailyAmount += amount;
+            weeklyAmount += amount;
+            monthlyAmount += amount;
+            seasonalAmount += amount;
+        }
     }
-
+    
     function settleJackpot() external {
-        if (block.number >= dailyEnd) {
+        if (block.number >= dailyEnd)
             setDaily();
-        }
-        if (block.number >= weeklyEnd) {
+        if (block.number >= weeklyEnd)
             setWeekly();
-        }
-        if (block.number >= monthlyEnd) {
+        if (block.number >= monthlyEnd)
             setMonthly();
-        }
-        if (block.number >= seasonalEnd) {
+        if (block.number >= seasonalEnd)
             setSeasonal();
-        }
         
-        if (block.number == dailyStart) 
+        if (block.number == dailyStart || (dailyStart < block.number - 256))
             return;
-            
+        
         uint48 modulo = uint48(bytes6(blockhash(dailyStart) << 29));
         
         uint256 dailyPayAmount;
@@ -185,16 +200,81 @@ contract EthexJackpot {
             seasonalWin = getNumber(seasonalNumberStartPrev, seasonalNumberEndPrev, modulo);
             emit Jackpot(seasonalWin, seasonalNumberEndPrev - seasonalNumberStartPrev + 1, seasonalPayAmount, 0x08);
         }
-        if (dailyPayAmount > 0) 
+        if (dailyPayAmount > 0)
             tickets[dailyWin].transfer(dailyPayAmount);
-        if (weeklyPayAmount > 0) 
+        if (weeklyPayAmount > 0)
             tickets[weeklyWin].transfer(weeklyPayAmount);
-        if (monthlyPayAmount > 0) 
+        if (monthlyPayAmount > 0)
             tickets[monthlyWin].transfer(monthlyPayAmount);
-        if (seasonalPayAmount > 0) 
+        if (seasonalPayAmount > 0)
             tickets[seasonalWin].transfer(seasonalPayAmount);
     }
-
+    
+    function settleSuperPrize(address payable winner) external onlyLoto {
+        uint256 superPrizeAmount = dailyAmount + weeklyAmount + monthlyAmount + seasonalAmount;
+        emit SuperPrize(superPrizeAmount, winner);
+        winner.transfer(superPrizeAmount);
+    }
+    
+    function loadTickets(address payable[] calldata addresses, uint256[] calldata numbers) external {
+        for (uint i = 0; i < addresses.length; i++)
+            tickets[numbers[i]] = addresses[i];
+    }
+    
+    function setOldVersion(
+        address payable oldAddress,
+        uint256 dailyNumberStartPrevIn,
+        uint256 weeklyNumberStartPrevIn,
+        uint256 monthlyNumberStartPrevIn,
+        uint256 seasonalNumberStartPrevIn,
+        uint256 dailyNumberStartIn,
+        uint256 weeklyNumberStartIn,
+        uint256 monthlyNumberStartIn,
+        uint256 seasonalNumberStartIn,
+        uint256 dailyNumberEndPrevIn,
+        uint256 weeklyNumberEndPrevIn, 
+        uint256 monthlyNumberEndPrevIn,
+        uint256 seasonalNumberEndPrevIn
+    ) external onlyOwner {
+        previousContract = EthexJackpot(oldAddress);
+        firstNumber = 1;//previousContract.numberEnd;        
+        dailyStart = block.number / DAILY * DAILY;
+        dailyEnd = dailyStart + DAILY;
+        dailyProcessed = true;
+        weeklyStart = block.number / WEEKLY * WEEKLY;
+        weeklyEnd = weeklyStart + WEEKLY;
+        weeklyProcessed = true;
+        monthlyStart = block.number / MONTHLY * MONTHLY;
+        monthlyEnd = monthlyStart + MONTHLY;
+        monthlyProcessed = true;
+        seasonalStart = block.number / SEASONAL * SEASONAL;
+        seasonalEnd = seasonalStart + SEASONAL;
+        seasonalProcessed = true;
+        dailyNumberStartPrev = dailyNumberStartPrevIn;
+        weeklyNumberStartPrev = weeklyNumberStartPrevIn;
+        monthlyNumberStartPrev = monthlyNumberStartPrevIn;
+        seasonalNumberStartPrev = seasonalNumberStartPrevIn;
+        dailyNumberStart = dailyNumberStartIn;
+        weeklyNumberStart = weeklyNumberStartIn;
+        monthlyNumberStart = monthlyNumberStartIn;
+        seasonalNumberStart = seasonalNumberStartIn;
+        dailyNumberEndPrev = dailyNumberEndPrevIn;
+        weeklyNumberEndPrev = weeklyNumberEndPrevIn;
+        monthlyNumberEndPrev = monthlyNumberEndPrevIn;
+        seasonalNumberEndPrev = seasonalNumberEndPrevIn;
+        numberEnd = previousContract.numberEnd();
+        dailyAmount = previousContract.dailyAmount();
+        weeklyAmount = previousContract.weeklyAmount();
+        monthlyAmount = previousContract.monthlyAmount();
+        seasonalAmount = previousContract.seasonalAmount() + 19599522250000000000;
+    }
+    
+    function getAddress(uint256 number) public returns (address payable) {
+        if (number <= firstNumber)
+            return previousContract.getAddress(number);
+        return tickets[number];
+    }
+    
     function setDaily() private {
         dailyProcessed = dailyNumberEndPrev == numberEnd;
         dailyStart = dailyEnd;
@@ -202,7 +282,7 @@ contract EthexJackpot {
         dailyNumberStartPrev = dailyNumberStart;
         dailyNumberEndPrev = numberEnd;
     }
-
+    
     function setWeekly() private {
         weeklyProcessed = weeklyNumberEndPrev == numberEnd;
         weeklyStart = weeklyEnd;
@@ -210,7 +290,7 @@ contract EthexJackpot {
         weeklyNumberStartPrev = weeklyNumberStart;
         weeklyNumberEndPrev = numberEnd;
     }
-
+    
     function setMonthly() private {
         monthlyProcessed = monthlyNumberEndPrev == numberEnd;
         monthlyStart = monthlyEnd;
@@ -218,7 +298,7 @@ contract EthexJackpot {
         monthlyNumberStartPrev = monthlyNumberStart;
         monthlyNumberEndPrev = numberEnd;
     }
-
+    
     function setSeasonal() private {
         seasonalProcessed = seasonalNumberEndPrev == numberEnd;
         seasonalStart = seasonalEnd;
@@ -226,8 +306,8 @@ contract EthexJackpot {
         seasonalNumberStartPrev = seasonalNumberStart;
         seasonalNumberEndPrev = numberEnd;
     }
-
-    function getNumber(uint256 startNumber, uint256 endNumber, uint48 modulo) pure private returns(uint256) {
+    
+    function getNumber(uint256 startNumber, uint256 endNumber, uint48 modulo) pure private returns (uint256) {
         return startNumber + modulo % (endNumber - startNumber + 1);
     }
 }
