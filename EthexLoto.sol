@@ -26,6 +26,12 @@ contract EthexLoto {
         address payable gamer;
     }
     
+    struct Refund {
+        uint256 amount;
+        bytes16 id;
+        address payable gamer;
+    }
+    
     Bet[] betArray;
     
     address payable public jackpotAddress;
@@ -35,6 +41,12 @@ contract EthexLoto {
     event Result (
         uint256 amount,
         bytes32 blockHash,
+        bytes16 indexed id,
+        address indexed gamer
+    );
+    
+    event RefundBet (
+        uint256 amount,
         bytes16 indexed id,
         address indexed gamer
     );
@@ -93,7 +105,7 @@ contract EthexLoto {
             }
         }
         
-        require(msg.value <= 180000 ether / ((coefficient * N - 300) * (100 - JACKPOT_PERCENT - HOUSE_EDGE)));
+        require(msg.value <= 180000 ether * markedCount / ((coefficient * N - 300 * markedCount) * (100 - JACKPOT_PERCENT - HOUSE_EDGE)));
         
         uint256 jackpotFee = msg.value * JACKPOT_PERCENT * PRECISION / 100 / PRECISION;
         uint256 houseEdgeFee = msg.value * HOUSE_EDGE * PRECISION / 100 / PRECISION;
@@ -112,73 +124,88 @@ contract EthexLoto {
 
         Payout[] memory payouts = new Payout[](betArray.length);
         Bet[] memory missedBets = new Bet[](betArray.length);
+        Refund[] memory refundedBets = new Refund[](betArray.length);
+        address payable[] memory superPrizes = new address payable[](betArray.length);
         uint256 totalPayout;
         uint i = betArray.length;
         do {
             i--;
-            if(betArray[i].blockNumber >= block.number || betArray[i].blockNumber < block.number - 256)
-                missedBets[i] = betArray[i];
+            if(betArray[i].blockNumber < block.number - 256)
+                refundedBets[i] = Refund(betArray[i].amount, betArray[i].id, betArray[i].gamer);
             else {
-                bytes32 blockHash = blockhash(betArray[i].blockNumber);
-                uint256 coefficient = 0;
-                uint8 markedCount;
-                uint8 matchesCount;
-                for (uint8 j = 0; j < betArray[i].bet.length; j++) {
-                    if (betArray[i].bet[j] > 0x13)
-                        continue;
-                    markedCount++;
-                    byte field;
-                    if (j % 2 == 0)
-                        field = blockHash[29 + j / 2] >> 4;
-                    else
-                        field = blockHash[29 + j / 2] & 0x0F;
-                    if (betArray[i].bet[j] < 0x10) {
-                        if (field == betArray[i].bet[j]) {
-                            matchesCount++;
-                            coefficient += 300;
+                if(betArray[i].blockNumber >= block.number)
+                    missedBets[i] = betArray[i];
+                else {
+                    bytes32 blockHash = blockhash(betArray[i].blockNumber);
+                    uint256 coefficient = 0;
+                    uint8 markedCount;
+                    uint8 matchesCount;
+                    bool isSuperPrize = true;
+                    for (uint8 j = 0; j < betArray[i].bet.length; j++) {
+                        if (betArray[i].bet[j] > 0x13) {
+                            isSuperPrize = false;
+                            continue;
                         }
-                        continue;
-                    }
-                    if (betArray[i].bet[j] == 0x10) {
-                        if (field > 0x09 && field < 0x10) {
-                            matchesCount++;
-                            coefficient += 50;
+                        markedCount++;
+                        byte field;
+                        if (j % 2 == 0)
+                            field = blockHash[29 + j / 2] >> 4;
+                        else
+                            field = blockHash[29 + j / 2] & 0x0F;
+                        if (betArray[i].bet[j] < 0x10) {
+                            if (field == betArray[i].bet[j]) {
+                                matchesCount++;
+                                coefficient += 300;
+                            }
+                            else
+                                isSuperPrize = false;
+                            continue;
                         }
-                        continue;
-                    }
-                    if (betArray[i].bet[j] == 0x11) {
-                        if (field < 0x0A) {
-                            matchesCount++;
-                            coefficient += 30;
+                        else
+                            isSuperPrize = false;
+                        if (betArray[i].bet[j] == 0x10) {
+                            if (field > 0x09 && field < 0x10) {
+                                matchesCount++;
+                                coefficient += 50;
+                            }
+                            continue;
                         }
-                        continue;
-                    }
-                    if (betArray[i].bet[j] == 0x12) {
-                        if (field < 0x0A && field & 0x01 == 0x01) {
-                            matchesCount++;
-                            coefficient += 60;
+                        if (betArray[i].bet[j] == 0x11) {
+                            if (field < 0x0A) {
+                                matchesCount++;
+                                coefficient += 30;
+                            }
+                            continue;
                         }
-                        continue;
-                    }
-                    if (betArray[i].bet[j] == 0x13) {
-                        if (field < 0x0A && field & 0x01 == 0x0) {
-                            matchesCount++;
-                            coefficient += 60;
+                        if (betArray[i].bet[j] == 0x12) {
+                            if (field < 0x0A && field & 0x01 == 0x01) {
+                                matchesCount++;
+                                coefficient += 60;
+                            }
+                            continue;
                         }
-                        continue;
+                        if (betArray[i].bet[j] == 0x13) {
+                            if (field < 0x0A && field & 0x01 == 0x0) {
+                                matchesCount++;
+                                coefficient += 60;
+                            }
+                            continue;
+                        }
                     }
-                }
-            
-                if (matchesCount == 0) 
-                    coefficient = 0;
-                else                    
-                    coefficient *= PRECISION * N;
                 
-                uint payoutAmount = betArray[i].amount * coefficient / (PRECISION * 300 * markedCount);
-                if (payoutAmount == 0 && matchesCount > 0)
-                    payoutAmount = matchesCount;
-                payouts[i] = Payout(payoutAmount, blockHash, betArray[i].id, betArray[i].gamer);
-                totalPayout += payoutAmount;
+                    if (matchesCount == 0) 
+                        coefficient = 0;
+                    else                    
+                        coefficient *= PRECISION * N;
+                    
+                    uint payoutAmount = betArray[i].amount * coefficient / (PRECISION * 300 * markedCount);
+                    if (payoutAmount == 0 && matchesCount > 0)
+                        payoutAmount = matchesCount;
+                    payouts[i] = Payout(payoutAmount, blockHash, betArray[i].id, betArray[i].gamer);
+                    totalPayout += payoutAmount;
+                    if (isSuperPrize == true)
+                        superPrizes[i] = betArray[i].gamer;
+                }
             }
             betArray.pop();
         } while (i > 0);
@@ -191,22 +218,31 @@ contract EthexLoto {
         } while (i > 0);
         
         uint balance = address(this).balance;
-        for (i = 0; i < payouts.length; i++) {
+        for (i = 0; i < refundedBets.length; i++)
+            if (refundedBets[i].amount > 0) {
+                emit RefundBet(refundedBets[i].amount, refundedBets[i].id, refundedBets[i].gamer);
+                balance -= refundedBets[i].amount;
+            }
+        for (i = 0; i < payouts.length; i++)
             if (payouts[i].id > 0) {
                 if (totalPayout > balance)
                     emit Result(balance * payouts[i].amount * PRECISION / totalPayout / PRECISION, payouts[i].blockHash, payouts[i].id, payouts[i].gamer);
                 else
                     emit Result(payouts[i].amount, payouts[i].blockHash, payouts[i].id, payouts[i].gamer);
             }
-        }
-        for (i = 0; i < payouts.length; i++) {
+        for (i = 0; i < refundedBets.length; i++)
+            if (refundedBets[i].amount > 0)
+                refundedBets[i].gamer.transfer(refundedBets[i].amount);
+        for (i = 0; i < payouts.length; i++)
             if (payouts[i].amount > 0) {
                 if (totalPayout > balance)
                     payouts[i].gamer.transfer(balance * payouts[i].amount * PRECISION / totalPayout / PRECISION);
                 else
                     payouts[i].gamer.transfer(payouts[i].amount);
             }
-        }
+        for (i = 0; i < superPrizes.length; i++)
+            if (superPrizes[i] != address(0))
+                EthexJackpot(jackpotAddress).paySuperPrize(superPrizes[i]);
     }
     
     function migrate(address payable newContract) external onlyOwner {
