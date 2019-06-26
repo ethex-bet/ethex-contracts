@@ -209,16 +209,15 @@ contract EthexJackpot {
         if (seasonalPayAmount > 0)
             getAddress(seasonalWin).transfer(seasonalPayAmount);
     }
-    
+
     function paySuperPrize(address payable winner) external onlyLoto {
         uint256 superPrizeAmount = dailyAmount + weeklyAmount + monthlyAmount + seasonalAmount;
+        dailyAmount = 0;
+        weeklyAmount = 0;
+        monthlyAmount = 0;
+        seasonalAmount = 0;
         emit SuperPrize(superPrizeAmount, winner);
         winner.transfer(superPrizeAmount);
-    }
-    
-    function loadTickets(address payable[] calldata addresses, uint256[] calldata numbers) external {
-        for (uint i = 0; i < addresses.length; i++)
-            tickets[numbers[i]] = addresses[i];
     }
     
     function setOldVersion(address payable oldAddress) external onlyOwner {
@@ -252,7 +251,9 @@ contract EthexJackpot {
         weeklyAmount = previousContract.weeklyAmount();
         monthlyAmount = previousContract.monthlyAmount();
         seasonalAmount = previousContract.seasonalAmount();
-        firstNumber = numberEnd;
+        firstNumber = weeklyNumberStart;
+        for (uint256 i = firstNumber; i <= numberEnd; i++)
+            tickets[i] = previousContract.getAddress(i);
         previousContract.migrate();
     }
     
