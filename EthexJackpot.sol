@@ -201,16 +201,16 @@ contract EthexJackpot {
             emit Jackpot(seasonalWin, seasonalNumberEndPrev - seasonalNumberStartPrev + 1, seasonalPayAmount, 0x08);
         }
         if (dailyPayAmount > 0)
-            tickets[dailyWin].transfer(dailyPayAmount);
+            getAddress(dailyWin).transfer(dailyPayAmount);
         if (weeklyPayAmount > 0)
-            tickets[weeklyWin].transfer(weeklyPayAmount);
+            getAddress(weeklyWin).transfer(weeklyPayAmount);
         if (monthlyPayAmount > 0)
-            tickets[monthlyWin].transfer(monthlyPayAmount);
+            getAddress(monthlyWin).transfer(monthlyPayAmount);
         if (seasonalPayAmount > 0)
-            tickets[seasonalWin].transfer(seasonalPayAmount);
+            getAddress(seasonalWin).transfer(seasonalPayAmount);
     }
     
-    function settleSuperPrize(address payable winner) external onlyLoto {
+    function paySuperPrize(address payable winner) external onlyLoto {
         uint256 superPrizeAmount = dailyAmount + weeklyAmount + monthlyAmount + seasonalAmount;
         emit SuperPrize(superPrizeAmount, winner);
         winner.transfer(superPrizeAmount);
@@ -221,52 +221,39 @@ contract EthexJackpot {
             tickets[numbers[i]] = addresses[i];
     }
     
-    function setOldVersion(
-        address payable oldAddress,
-        uint256 dailyNumberStartPrevIn,
-        uint256 weeklyNumberStartPrevIn,
-        uint256 monthlyNumberStartPrevIn,
-        uint256 seasonalNumberStartPrevIn,
-        uint256 dailyNumberStartIn,
-        uint256 weeklyNumberStartIn,
-        uint256 monthlyNumberStartIn,
-        uint256 seasonalNumberStartIn,
-        uint256 dailyNumberEndPrevIn,
-        uint256 weeklyNumberEndPrevIn, 
-        uint256 monthlyNumberEndPrevIn,
-        uint256 seasonalNumberEndPrevIn
-    ) external onlyOwner {
+    function setOldVersion(address payable oldAddress) external onlyOwner {
         previousContract = EthexJackpot(oldAddress);
-        firstNumber = 1;//previousContract.numberEnd;        
-        dailyStart = block.number / DAILY * DAILY;
-        dailyEnd = dailyStart + DAILY;
-        dailyProcessed = true;
-        weeklyStart = block.number / WEEKLY * WEEKLY;
-        weeklyEnd = weeklyStart + WEEKLY;
-        weeklyProcessed = true;
-        monthlyStart = block.number / MONTHLY * MONTHLY;
-        monthlyEnd = monthlyStart + MONTHLY;
-        monthlyProcessed = true;
-        seasonalStart = block.number / SEASONAL * SEASONAL;
-        seasonalEnd = seasonalStart + SEASONAL;
-        seasonalProcessed = true;
-        dailyNumberStartPrev = dailyNumberStartPrevIn;
-        weeklyNumberStartPrev = weeklyNumberStartPrevIn;
-        monthlyNumberStartPrev = monthlyNumberStartPrevIn;
-        seasonalNumberStartPrev = seasonalNumberStartPrevIn;
-        dailyNumberStart = dailyNumberStartIn;
-        weeklyNumberStart = weeklyNumberStartIn;
-        monthlyNumberStart = monthlyNumberStartIn;
-        seasonalNumberStart = seasonalNumberStartIn;
-        dailyNumberEndPrev = dailyNumberEndPrevIn;
-        weeklyNumberEndPrev = weeklyNumberEndPrevIn;
-        monthlyNumberEndPrev = monthlyNumberEndPrevIn;
-        seasonalNumberEndPrev = seasonalNumberEndPrevIn;
+        dailyStart = previousContract.dailyStart();
+        dailyEnd = previousContract.dailyEnd();
+        dailyProcessed = previousContract.dailyProcessed();
+        weeklyStart = previousContract.weeklyStart();
+        weeklyEnd = previousContract.weeklyEnd();
+        weeklyProcessed = previousContract.weeklyProcessed();
+        monthlyStart = previousContract.monthlyStart();
+        monthlyEnd = previousContract.monthlyEnd();
+        monthlyProcessed = previousContract.monthlyProcessed();
+        seasonalStart = previousContract.seasonalStart();
+        seasonalEnd = previousContract.seasonalEnd();
+        seasonalProcessed = previousContract.seasonalProcessed();
+        dailyNumberStartPrev = previousContract.dailyNumberStartPrev();
+        weeklyNumberStartPrev = previousContract.weeklyNumberStartPrev();
+        monthlyNumberStartPrev = previousContract.monthlyNumberStartPrev();
+        seasonalNumberStartPrev = previousContract.seasonalNumberStartPrev();
+        dailyNumberStart = previousContract.dailyNumberStart();
+        weeklyNumberStart = previousContract.weeklyNumberStart();
+        monthlyNumberStart = previousContract.monthlyNumberStart();
+        seasonalNumberStart = previousContract.seasonalNumberStart();
+        dailyNumberEndPrev = previousContract.dailyNumberEndPrev();
+        weeklyNumberEndPrev = previousContract.weeklyNumberEndPrev();
+        monthlyNumberEndPrev = previousContract.monthlyNumberEndPrev();
+        seasonalNumberEndPrev = previousContract.seasonalNumberEndPrev();
         numberEnd = previousContract.numberEnd();
         dailyAmount = previousContract.dailyAmount();
         weeklyAmount = previousContract.weeklyAmount();
         monthlyAmount = previousContract.monthlyAmount();
-        seasonalAmount = previousContract.seasonalAmount() + 19599522250000000000;
+        seasonalAmount = previousContract.seasonalAmount();
+        firstNumber = numberEnd;
+        previousContract.migrate();
     }
     
     function getAddress(uint256 number) public returns (address payable) {
