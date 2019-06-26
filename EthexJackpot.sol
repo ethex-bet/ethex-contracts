@@ -57,6 +57,10 @@ contract EthexJackpot {
     uint256 constant WEEKLY = 35000;
     uint256 constant MONTHLY = 140000;
     uint256 constant SEASONAL = 420000;
+    uint256 constant PRECISION = 1 ether;
+    uint256 constant DAILY_PART = 84;
+    uint256 constant WEEKLY_PART = 12;
+    uint256 constant MONTHLY_PART = 3;
     
     constructor() public payable {
         owner = msg.sender;
@@ -74,6 +78,8 @@ contract EthexJackpot {
         seasonalProcessed = true;
     }
 
+    function() external payable {}
+    
     modifier onlyOwner {
         require(msg.sender == owner);
         _;
@@ -83,7 +89,7 @@ contract EthexJackpot {
         require(msg.sender == lotoAddress, "Loto only");
         _;
     }
-    
+
     function migrate(address payable newContract) external onlyOwner {
         newContract.transfer(address(this).balance);
     }
@@ -110,19 +116,20 @@ contract EthexJackpot {
         tickets[number] = gamer;
         emit Ticket(id, number);
     }
-    
+
     function setLoto(address loto) external onlyOwner {
         lotoAddress = loto;
     }
-    
+
     function payIn() external payable {
-        uint256 amount = msg.value / 4;
+        uint256 distributedAmount = dailyAmount + weeklyAmount + monthlyAmount + seasonalAmount;
+        uint256 amount = (address(this).balance - distributedAmount) / 4;
         dailyAmount += amount;
         weeklyAmount += amount;
         monthlyAmount += amount;
         seasonalAmount += amount;
     }
-    
+
     function settleJackpot() external {
         if (block.number >= dailyEnd) {
             setDaily();
@@ -137,9 +144,9 @@ contract EthexJackpot {
             setSeasonal();
         }
         
-        if (block.number == dailyStart)
+        if (block.number == dailyStart) 
             return;
-        
+            
         uint48 modulo = uint48(bytes6(blockhash(dailyStart) << 29));
         
         uint256 dailyPayAmount;
@@ -151,43 +158,43 @@ contract EthexJackpot {
         uint256 monthlyWin;
         uint256 seasonalWin;
         if (dailyProcessed == false) {
-            dailyPayAmount = dailyAmount; 
-            dailyAmount = 0;
+            dailyPayAmount = dailyAmount * PRECISION / DAILY_PART / PRECISION;
+            dailyAmount -= dailyPayAmount;
             dailyProcessed = true;
             dailyWin = getNumber(dailyNumberStartPrev, dailyNumberEndPrev, modulo);
             emit Jackpot(dailyWin, dailyNumberEndPrev - dailyNumberStartPrev + 1, dailyPayAmount, 0x01);
         }
         if (weeklyProcessed == false) {
-            weeklyPayAmount = weeklyAmount;
-            weeklyAmount = 0;
+            weeklyPayAmount = weeklyAmount * PRECISION / WEEKLY_PART / PRECISION;
+            weeklyAmount -= weeklyPayAmount;
             weeklyProcessed = true;
             weeklyWin = getNumber(weeklyNumberStartPrev, weeklyNumberEndPrev, modulo);
             emit Jackpot(weeklyWin, weeklyNumberEndPrev - weeklyNumberStartPrev + 1, weeklyPayAmount, 0x02);
         }
         if (monthlyProcessed == false) {
-            monthlyPayAmount = monthlyAmount;
-            monthlyAmount = 0;
+            monthlyPayAmount = monthlyAmount * PRECISION / MONTHLY_PART / PRECISION;
+            monthlyAmount -= monthlyPayAmount;
             monthlyProcessed = true;
             monthlyWin = getNumber(monthlyNumberStartPrev, monthlyNumberEndPrev, modulo);
             emit Jackpot(monthlyWin, monthlyNumberEndPrev - monthlyNumberStartPrev + 1, monthlyPayAmount, 0x04);
         }
         if (seasonalProcessed == false) {
             seasonalPayAmount = seasonalAmount;
-            seasonalAmount = 0;
+            seasonalAmount -= seasonalPayAmount;
             seasonalProcessed = true;
             seasonalWin = getNumber(seasonalNumberStartPrev, seasonalNumberEndPrev, modulo);
             emit Jackpot(seasonalWin, seasonalNumberEndPrev - seasonalNumberStartPrev + 1, seasonalPayAmount, 0x08);
         }
-        if (dailyPayAmount > 0)
+        if (dailyPayAmount > 0) 
             tickets[dailyWin].transfer(dailyPayAmount);
-        if (weeklyPayAmount > 0)
+        if (weeklyPayAmount > 0) 
             tickets[weeklyWin].transfer(weeklyPayAmount);
-        if (monthlyPayAmount > 0)
+        if (monthlyPayAmount > 0) 
             tickets[monthlyWin].transfer(monthlyPayAmount);
-        if (seasonalPayAmount > 0)
+        if (seasonalPayAmount > 0) 
             tickets[seasonalWin].transfer(seasonalPayAmount);
     }
-    
+
     function setDaily() private {
         dailyProcessed = dailyNumberEndPrev == numberEnd;
         dailyStart = dailyEnd;
@@ -195,7 +202,7 @@ contract EthexJackpot {
         dailyNumberStartPrev = dailyNumberStart;
         dailyNumberEndPrev = numberEnd;
     }
-    
+
     function setWeekly() private {
         weeklyProcessed = weeklyNumberEndPrev == numberEnd;
         weeklyStart = weeklyEnd;
@@ -203,7 +210,7 @@ contract EthexJackpot {
         weeklyNumberStartPrev = weeklyNumberStart;
         weeklyNumberEndPrev = numberEnd;
     }
-    
+
     function setMonthly() private {
         monthlyProcessed = monthlyNumberEndPrev == numberEnd;
         monthlyStart = monthlyEnd;
@@ -211,7 +218,7 @@ contract EthexJackpot {
         monthlyNumberStartPrev = monthlyNumberStart;
         monthlyNumberEndPrev = numberEnd;
     }
-    
+
     function setSeasonal() private {
         seasonalProcessed = seasonalNumberEndPrev == numberEnd;
         seasonalStart = seasonalEnd;
@@ -219,8 +226,8 @@ contract EthexJackpot {
         seasonalNumberStartPrev = seasonalNumberStart;
         seasonalNumberEndPrev = numberEnd;
     }
-    
-    function getNumber(uint256 startNumber, uint256 endNumber, uint48 modulo) pure private returns (uint256) {
+
+    function getNumber(uint256 startNumber, uint256 endNumber, uint48 modulo) pure private returns(uint256) {
         return startNumber + modulo % (endNumber - startNumber + 1);
     }
 }
