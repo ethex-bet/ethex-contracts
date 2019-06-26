@@ -212,4 +212,8 @@ contract EthexLoto {
     function migrate(address payable newContract) external onlyOwner {
         newContract.transfer(address(this).balance);
     }
+
+    function setJackpot(address payable jackpot) external onlyOwner {
+        jackpotAddress = jackpot;
+    }
 }
