@@ -57,10 +57,6 @@ contract EthexJackpot {
     uint256 constant WEEKLY = 35000;
     uint256 constant MONTHLY = 140000;
     uint256 constant SEASONAL = 420000;
-    uint256 constant PRECISION = 1 ether;
-    uint256 constant DAILY_PART = 84;
-    uint256 constant WEEKLY_PART = 12;
-    uint256 constant MONTHLY_PART = 3;
     
     constructor() public payable {
         owner = msg.sender;
@@ -77,8 +73,6 @@ contract EthexJackpot {
         seasonalEnd = seasonalStart + SEASONAL;
         seasonalProcessed = true;
     }
-    
-    function() external payable { }
 
     modifier onlyOwner {
         require(msg.sender == owner);
@@ -122,8 +116,7 @@ contract EthexJackpot {
     }
     
     function payIn() external payable {
-        uint256 distributedAmount = dailyAmount + weeklyAmount + monthlyAmount + seasonalAmount;
-        uint256 amount = (address(this).balance - distributedAmount) / 4;
+        uint256 amount = msg.value / 4;
         dailyAmount += amount;
         weeklyAmount += amount;
         monthlyAmount += amount;
@@ -158,29 +151,29 @@ contract EthexJackpot {
         uint256 monthlyWin;
         uint256 seasonalWin;
         if (dailyProcessed == false) {
-            dailyPayAmount = dailyAmount * PRECISION / DAILY_PART / PRECISION;
-            dailyAmount -= dailyPayAmount;
+            dailyPayAmount = dailyAmount; 
+            dailyAmount = 0;
             dailyProcessed = true;
             dailyWin = getNumber(dailyNumberStartPrev, dailyNumberEndPrev, modulo);
             emit Jackpot(dailyWin, dailyNumberEndPrev - dailyNumberStartPrev + 1, dailyPayAmount, 0x01);
         }
         if (weeklyProcessed == false) {
-            weeklyPayAmount = weeklyAmount * PRECISION / WEEKLY_PART / PRECISION;
-            weeklyAmount -= weeklyPayAmount;
+            weeklyPayAmount = weeklyAmount;
+            weeklyAmount = 0;
             weeklyProcessed = true;
             weeklyWin = getNumber(weeklyNumberStartPrev, weeklyNumberEndPrev, modulo);
             emit Jackpot(weeklyWin, weeklyNumberEndPrev - weeklyNumberStartPrev + 1, weeklyPayAmount, 0x02);
         }
         if (monthlyProcessed == false) {
-            monthlyPayAmount = monthlyAmount * PRECISION / MONTHLY_PART / PRECISION;
-            monthlyAmount -= monthlyPayAmount;
+            monthlyPayAmount = monthlyAmount;
+            monthlyAmount = 0;
             monthlyProcessed = true;
             monthlyWin = getNumber(monthlyNumberStartPrev, monthlyNumberEndPrev, modulo);
             emit Jackpot(monthlyWin, monthlyNumberEndPrev - monthlyNumberStartPrev + 1, monthlyPayAmount, 0x04);
         }
         if (seasonalProcessed == false) {
             seasonalPayAmount = seasonalAmount;
-            seasonalAmount -= seasonalPayAmount;
+            seasonalAmount = 0;
             seasonalProcessed = true;
             seasonalWin = getNumber(seasonalNumberStartPrev, seasonalNumberEndPrev, modulo);
             emit Jackpot(seasonalWin, seasonalNumberEndPrev - seasonalNumberStartPrev + 1, seasonalPayAmount, 0x08);
