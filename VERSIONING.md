@@ -11,6 +11,7 @@
 
 VERSION|ADDRESS|REFERENCE
 :-----:|:-----:|:--------
+v0.9|```0x3B81FC04De79dF41951f31a2AeB4B601c1aDe53C```|[Diff](https://github.com/ethex-bet/ethex-contracts/commit/4df2455496e36ae9313403ec6ac1bffe329e09eb#diff-e0bc8b9801c333a470508fbb1da01ba6)
 v0.8|```0xDf61756A3F3F97E0Bc6b8DF9CAEBf8C44F548541```|[Diff](https://github.com/ethex-bet/ethex-contracts/commit/e74e0842d91222edc45092bb3ab24e05cb805334#diff-e0bc8b9801c333a470508fbb1da01ba6)
 v0.7|```0xe06d27b95616cd9922a4af2ee95f6802b7e08a9a```|No changes
 v0.6|```0xd1cA2D46F876395E8c6c510CAAA93eE70c3B0028```|[Initial commit](https://github.com/ethex-bet/ethex-contracts/commit/a45b696100a290a17683727f9541f7e1d49646a4#diff-e0bc8b9801c333a470508fbb1da01ba6)
