@@ -7,6 +7,10 @@ pragma solidity ^0.5.0;
  *  http://ethex.bet
  */
 
+import "./EthexJackpot.sol";
+import "./EthexHouse.sol";
+import "./EthexSuperprize.sol";
+
 contract EthexLoto {
     struct Bet {
         uint256 blockNumber;
@@ -115,12 +119,12 @@ contract EthexLoto {
         uint256 balance = address(this).balance - holdBalance;
         
         for(; i < length; i++) {
-            Bet memory bet = dequeue();
-            if (bet.blockNumber >= block.number) {
+            if (blockNumberQueue[first] >= block.number) {
                 length = i;
                 break;
             }
             else {
+                Bet memory bet = dequeue();
                 uint256 coefficient = 0;
                 uint8 markedCount = 0;
                 uint256 holdAmount = 0;
