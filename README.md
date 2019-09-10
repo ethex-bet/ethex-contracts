@@ -48,7 +48,7 @@ The specific symbol (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F) | 1 : 16 | 
 
 If you select more symbols but guess less of them your prize rate will be lower than if you guess the exact number of cells, but you get the chance to win the Jackpot.
 
-_Note: the actual prize amount is limited to the current prize pool and is divided proportionally between all winners within the same block, according to their bet amounts._
+_Note: prize rates are applied after deducting jackpot fee and house edge. The actual prize amount is limited to the current prize pool and is payed on the "first come first served" basis for all winners within the same block._
 
 ## Jackpots and Superprize
 
@@ -61,6 +61,10 @@ Weekly Jackpot | 1/4 of Monthly Jackpot amount | Every 35000 block (roughly once
 Monthly Jackpot | 1/3 of Season Jackpot amount | Every 150000 block (roughly once a month)
 Season Jackpot | 1/4 of total Jackpot amount | Every 450000 block (roughly once every three months)
 Superprize | The full Jackpot amount | Immediately after the block with your bet is mined
+
+If you guess all of the last 6 symbols of the hash, you immideately vanish the amounts stored on both Ethex Lotto and Jackpot smart-contracts. You also get the general superprize amount stored on Ethex Superprize smart-contract. It is to be locked and paid out to the winner by 6 portions, every 150,000 blocks (approximately within 6 months). Each payment is about 10% bigger than the previous one. This helps to protect winners’ lifestyle and purchasing power in periods of inflation.
+
+You can see the payouts calculation for the superprize winner based on the current state of the smart-contracts on [this page](https://ethex.bet/rules#jackpots).
 
 ## How is the winner of jackpot decided?
 
