@@ -1,4 +1,4 @@
-pragma solidity ^0.5.0;
+pragma solidity 0.5.10;
 
 /**
  * (E)t)h)e)x) Superprize Contract 
@@ -7,7 +7,10 @@ pragma solidity ^0.5.0;
  *  http://ethex.bet
  */
  
- contract EthexSuperprize {
+ import "./DeliverFunds.sol";
+ import "./Ownable.sol";
+ 
+ contract EthexSuperprize is Ownable {
     struct Payout {
         uint256 index;
         uint256 amount;
@@ -17,11 +20,10 @@ pragma solidity ^0.5.0;
     }
      
     Payout[] public payouts;
-     
-    address payable private owner;
+    
     address public lotoAddress;
     address payable public newVersionAddress;
-    EthexSuperprize previousContract;
+    EthexSuperprize public previousContract;
     uint256 public hold;
     
     event Superprize (
@@ -32,23 +34,14 @@ pragma solidity ^0.5.0;
         byte state
     );
     
-    uint8 constant PARTS = 6;
-    uint256 constant PRECISION = 1 ether;
-    uint256 constant MONTHLY = 150000;
-     
-    constructor() public {
-        owner = msg.sender;
-    }
-     
-     modifier onlyOwner {
-        require(msg.sender == owner);
-        _;
-    }
-    
+    uint8 internal constant PARTS = 6;
+    uint256 internal constant PRECISION = 1 ether;
+    uint256 internal constant MONTHLY = 150000;
+
     function() external payable { }
     
     function initSuperprize(address payable winner, bytes16 betId) external {
-        require(msg.sender == lotoAddress);
+        require(msg.sender == lotoAddress, "Loto only");
         uint256 amount = address(this).balance - hold;
         hold = address(this).balance;
         uint256 sum;
@@ -80,8 +73,8 @@ pragma solidity ^0.5.0;
             if (payoutArray[i].block > block.number)
                 payouts.push(payoutArray[i]);
         for (i = 0; i < payoutArray.length; i++)
-            if (payoutArray[i].block <= block.number)
-                payoutArray[i].winnerAddress.transfer(payoutArray[i].amount);
+            if (payoutArray[i].block <= block.number && !payoutArray[i].winnerAddress.send(payoutArray[i].amount))
+                (new DeliverFunds).value(payoutArray[i].amount)(payoutArray[i].winnerAddress);
     }
      
     function setOldVersion(address payable oldAddress) external onlyOwner {
@@ -93,7 +86,8 @@ pragma solidity ^0.5.0;
         uint256 betBlock;
         address payable winner;
         bytes16 betId;
-        for (uint i = 0; i < previousContract.getPayoutsCount(); i++) {
+        uint256 payoutsCount = previousContract.getPayoutsCount();
+        for (uint i = 0; i < payoutsCount; i++) {
             (index, amount, betBlock, winner, betId) = previousContract.payouts(i);
             payouts.push(Payout(index, amount, betBlock, winner, betId));
         }
@@ -114,7 +108,5 @@ pragma solidity ^0.5.0;
         newVersionAddress.transfer(address(this).balance);
     }   
 
-    function getPayoutsCount() view public returns (uint256) {
-        return payouts.length;
-    }
+    function getPayoutsCount() public view returns (uint256) { return payouts.length; }
 }
