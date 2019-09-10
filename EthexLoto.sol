@@ -1,4 +1,4 @@
-pragma solidity ^0.5.0;
+pragma solidity 0.5.10;
 
 /**
  * (E)t)h)e)x) Loto Contract 
@@ -10,6 +10,7 @@ pragma solidity ^0.5.0;
 import "./EthexJackpot.sol";
 import "./EthexHouse.sol";
 import "./EthexSuperprize.sol";
+import "./DeliverFunds.sol";
 
 contract EthexLoto {
     struct Bet {
@@ -56,7 +57,6 @@ contract EthexLoto {
         address gamer
     );
     
-    uint8 constant N = 16;
     uint256 constant MIN_BET = 0.01 ether;
     uint256 constant PRECISION = 1 ether;
     uint256 constant JACKPOT_PERCENT = 10;
@@ -77,15 +77,16 @@ contract EthexLoto {
     }
     
     function placeBet(bytes22 params) external payable {
+        require(tx.origin == msg.sender);
         require(msg.value >= MIN_BET, "Bet amount should be greater or equal than minimal amount");
         require(bytes16(params) != 0, "Id should not be 0");
         
         bytes16 id = bytes16(params);
         bytes6 bet = bytes6(params << 128);
         
-        uint256 coefficient = 0;
-        uint8 markedCount = 0;
-        uint256 holdAmount = 0;
+        uint256 coefficient;
+        uint8 markedCount;
+        uint256 holdAmount;
         uint256 jackpotFee = msg.value * JACKPOT_PERCENT * PRECISION / 100 / PRECISION;
         uint256 houseEdgeFee = msg.value * HOUSE_EDGE * PRECISION / 100 / PRECISION;
         uint256 betAmount = msg.value - jackpotFee - houseEdgeFee;
@@ -192,14 +193,9 @@ contract EthexLoto {
                         }
                     }
                 
-                    if (matchesCount == 0) 
-                        coefficient = 0;
-                    else                    
-                        coefficient *= PRECISION * 8;
+                    coefficient *= PRECISION * 8;
                         
                     uint256 payoutAmount = bet.amount * coefficient / (PRECISION * 15 * markedCount);
-                    if (payoutAmount == 0 && matchesCount > 0)
-                        payoutAmount = matchesCount;
                     transactions[i] = Transaction(payoutAmount, bet.gamer);
                     emit PayoutBet(payoutAmount, bet.id, bet.gamer);
                     balance -= payoutAmount;
@@ -214,11 +210,13 @@ contract EthexLoto {
         }
         
         for (i = 0; i < length; i++) {
-            transactions[i].gamer.transfer(transactions[i].amount);
+            if (transactions[i].amount > 0 && !transactions[i].gamer.send(transactions[i].amount))
+                (new DeliverFunds).value(transactions[i].amount)(transactions[i].gamer);
             if (superprizes[i].id != 0) {
                 EthexSuperprize(superprizeAddress).initSuperprize(transactions[i].gamer, superprizes[i].id);
                 EthexJackpot(jackpotAddress).paySuperPrize(transactions[i].gamer);
-                transactions[i].gamer.transfer(superprizes[i].amount);
+                if (superprizes[i].amount > 0 && !transactions[i].gamer.send(superprizes[i].amount))
+                    (new DeliverFunds).value(superprizes[i].amount)(transactions[i].gamer);
             }
         }
     }
@@ -293,6 +291,6 @@ contract EthexLoto {
                 continue;
             }
         }
-        holdAmount = amount * (100 - JACKPOT_PERCENT - HOUSE_EDGE) * coefficient * 2 / 375 / markedCount;
+        holdAmount = amount * coefficient * 2 / 375 / markedCount;
     }
 }
