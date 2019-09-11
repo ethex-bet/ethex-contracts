@@ -11,8 +11,9 @@ import "./EthexJackpot.sol";
 import "./EthexHouse.sol";
 import "./EthexSuperprize.sol";
 import "./DeliverFunds.sol";
+import "./Ownable.sol";
 
-contract EthexLoto {
+contract EthexLoto is Ownable {
     struct Bet {
         uint256 blockNumber;
         uint256 amount;
@@ -43,7 +44,6 @@ contract EthexLoto {
     address payable public jackpotAddress;
     address payable public houseAddress;
     address payable public superprizeAddress;
-    address payable private owner;
 
     event PayoutBet (
         uint256 amount,
@@ -57,24 +57,18 @@ contract EthexLoto {
         address gamer
     );
     
-    uint256 constant MIN_BET = 0.01 ether;
-    uint256 constant PRECISION = 1 ether;
-    uint256 constant JACKPOT_PERCENT = 10;
-    uint256 constant HOUSE_EDGE = 10;
+    uint256 internal constant MIN_BET = 0.01 ether;
+    uint256 internal constant PRECISION = 1 ether;
+    uint256 internal constant JACKPOT_PERCENT = 10;
+    uint256 internal constant HOUSE_EDGE = 10;
     
     constructor(address payable jackpot, address payable house, address payable superprize) public payable {
-        owner = msg.sender;
         jackpotAddress = jackpot;
         houseAddress = house;
         superprizeAddress = superprize;
     }
     
     function() external payable { }
-    
-    modifier onlyOwner {
-        require(msg.sender == owner);
-        _;
-    }
     
     function placeBet(bytes22 params) external payable {
         require(tx.origin == msg.sender);
@@ -113,7 +107,7 @@ contract EthexLoto {
         if (first > last)
             return;
         uint256 i = 0;
-        uint256 length = last - first + 1;
+        uint256 length = getLength();
         length = length > 10 ? 10 : length;
         Transaction[] memory transactions = new Transaction[](length);
         Superprize[] memory superprizes = new Superprize[](length);
@@ -214,7 +208,7 @@ contract EthexLoto {
                 (new DeliverFunds).value(transactions[i].amount)(transactions[i].gamer);
             if (superprizes[i].id != 0) {
                 EthexSuperprize(superprizeAddress).initSuperprize(transactions[i].gamer, superprizes[i].id);
-                EthexJackpot(jackpotAddress).paySuperPrize(transactions[i].gamer);
+                EthexJackpot(jackpotAddress).paySuperprize(transactions[i].gamer);
                 if (superprizes[i].amount > 0 && !transactions[i].gamer.send(superprizes[i].amount))
                     (new DeliverFunds).value(superprizes[i].amount)(transactions[i].gamer);
             }
@@ -222,6 +216,7 @@ contract EthexLoto {
     }
     
     function migrate(address payable newContract) external onlyOwner {
+        require(getLength() == 0, "There are pending bets");
         newContract.transfer(address(this).balance);
     }
 
@@ -233,9 +228,7 @@ contract EthexLoto {
         superprizeAddress = superprize;
     }
     
-    function length() public view returns (uint256) {
-        return 1 + last - first;
-    }
+    function length() public view returns (uint256) { return getLength(); }
     
     function enqueue(uint256 blockNumber, uint256 amount, bytes16 id, bytes6 bet, address payable gamer) internal {
         last += 1;
@@ -263,6 +256,10 @@ contract EthexLoto {
         }
         else
             first += 1;
+    }
+    
+    function getLength() internal view returns (uint256) {
+        return 1 + last - first;
     }
     
     function getHold(uint256 amount, bytes6 bet) internal pure returns (uint256 coefficient, uint8 markedCount, uint256 holdAmount) {
