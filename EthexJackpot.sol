@@ -1,4 +1,4 @@
-pragma solidity ^0.5.0;
+pragma solidity 0.5.10;
 
 /**
  * (E)t)h)e)x) Jackpot Contract 
@@ -7,7 +7,10 @@ pragma solidity ^0.5.0;
  *  http://ethex.bet
  */
 
-contract EthexJackpot {
+import "./DeliverFunds.sol";
+import "./Ownable.sol";
+
+contract EthexJackpot is Ownable {
     mapping(uint256 => address payable) public tickets;
     uint256 public numberEnd;
     uint256 public firstNumber;
@@ -19,10 +22,9 @@ contract EthexJackpot {
     bool public weeklyProcessed;
     bool public monthlyProcessed;
     bool public seasonalProcessed;
-    address payable private owner;
     address public lotoAddress;
     address payable public newVersionAddress;
-    EthexJackpot previousContract;
+    EthexJackpot public previousContract;
     uint256 public dailyNumberStartPrev;
     uint256 public weeklyNumberStartPrev;
     uint256 public monthlyNumberStartPrev;
@@ -56,30 +58,19 @@ contract EthexJackpot {
         uint256 number
     );
     
-    event SuperPrize (
+    event Superprize (
         uint256 amount,
         address winner
     );
     
-    uint256 constant DAILY = 5000;
-    uint256 constant WEEKLY = 35000;
-    uint256 constant MONTHLY = 150000;
-    uint256 constant SEASONAL = 450000;
-    uint256 constant PRECISION = 1 ether;
-    uint256 constant DAILY_PART = 84;
-    uint256 constant WEEKLY_PART = 12;
-    uint256 constant MONTHLY_PART = 3;
-    
-    constructor() public payable {
-        owner = msg.sender;
-    }
-    
-    function() external payable {}
-
-    modifier onlyOwner {
-        require(msg.sender == owner);
-        _;
-    }
+    uint256 internal constant DAILY = 5000;
+    uint256 internal constant WEEKLY = 35000;
+    uint256 internal constant MONTHLY = 150000;
+    uint256 internal constant SEASONAL = 450000;
+    uint256 internal constant PRECISION = 1 ether;
+    uint256 internal constant DAILY_PART = 84;
+    uint256 internal constant WEEKLY_PART = 12;
+    uint256 internal constant MONTHLY_PART = 3;
     
     modifier onlyOwnerOrNewVersion {
         require(msg.sender == owner || msg.sender == newVersionAddress);
@@ -90,6 +81,8 @@ contract EthexJackpot {
         require(msg.sender == lotoAddress, "Loto only");
         _;
     }
+    
+    function() external payable { }
     
     function migrate() external onlyOwnerOrNewVersion {
         newVersionAddress.transfer(address(this).balance);
@@ -148,21 +141,9 @@ contract EthexJackpot {
             seasonalAmount += amount;
         }
     }
-    
-    function settleJackpot() external {
-        if (block.number >= dailyEnd)
-            setDaily();
-        if (block.number >= weeklyEnd)
-            setWeekly();
-        if (block.number >= monthlyEnd)
-            setMonthly();
-        if (block.number >= seasonalEnd)
-            setSeasonal();
-        
-        if (block.number == dailyStart || (dailyStart < block.number - 256))
-            return;
-        
-        uint48 modulo = uint48(bytes6(blockhash(dailyStart) << 29));
+
+    function processJackpots(bytes32 hash) private {
+        uint48 modulo = uint48(bytes6(hash << 29));
         
         uint256 dailyPayAmount;
         uint256 weeklyPayAmount;
@@ -200,24 +181,55 @@ contract EthexJackpot {
             seasonalWin = getNumber(seasonalNumberStartPrev, seasonalNumberEndPrev, modulo);
             emit Jackpot(seasonalWin, seasonalNumberEndPrev - seasonalNumberStartPrev + 1, seasonalPayAmount, 0x08);
         }
-        if (dailyPayAmount > 0)
-            getAddress(dailyWin).transfer(dailyPayAmount);
-        if (weeklyPayAmount > 0)
-            getAddress(weeklyWin).transfer(weeklyPayAmount);
-        if (monthlyPayAmount > 0)
-            getAddress(monthlyWin).transfer(monthlyPayAmount);
-        if (seasonalPayAmount > 0)
-            getAddress(seasonalWin).transfer(seasonalPayAmount);
+        if (dailyPayAmount > 0 && !getAddress(dailyWin).send(dailyPayAmount))
+            (new DeliverFunds).value(dailyPayAmount)(getAddress(dailyWin));
+        if (weeklyPayAmount > 0 && !getAddress(weeklyWin).send(weeklyPayAmount))
+            (new DeliverFunds).value(weeklyPayAmount)(getAddress(weeklyWin));
+        if (monthlyPayAmount > 0 && !getAddress(monthlyWin).send(monthlyPayAmount))
+            (new DeliverFunds).value(monthlyPayAmount)(getAddress(monthlyWin));
+        if (seasonalPayAmount > 0 && !getAddress(seasonalWin).send(seasonalPayAmount))
+            (new DeliverFunds).value(seasonalPayAmount)(getAddress(seasonalWin));
+    }
+    
+    function settleJackpot() external {
+        if (block.number >= dailyEnd)
+            setDaily();
+        if (block.number >= weeklyEnd)
+            setWeekly();
+        if (block.number >= monthlyEnd)
+            setMonthly();
+        if (block.number >= seasonalEnd)
+            setSeasonal();
+        
+        if (block.number == dailyStart || (dailyStart < block.number - 256))
+            return;
+        
+        processJackpots(blockhash(dailyStart));
     }
 
-    function paySuperPrize(address payable winner) external onlyLoto {
-        uint256 superPrizeAmount = dailyAmount + weeklyAmount + monthlyAmount + seasonalAmount;
+    function settleMissedJackpot(bytes32 hash) external onlyOwner {
+        if (block.number >= dailyEnd)
+            setDaily();
+        if (block.number >= weeklyEnd)
+            setWeekly();
+        if (block.number >= monthlyEnd)
+            setMonthly();
+        if (block.number >= seasonalEnd)
+            setSeasonal();
+        
+        if (dailyStart < block.number - 256)
+            processJackpots(hash);
+    }
+    
+    function paySuperprize(address payable winner) external onlyLoto {
+        uint256 superprizeAmount = dailyAmount + weeklyAmount + monthlyAmount + seasonalAmount;
         dailyAmount = 0;
         weeklyAmount = 0;
         monthlyAmount = 0;
         seasonalAmount = 0;
-        emit SuperPrize(superPrizeAmount, winner);
-        winner.transfer(superPrizeAmount);
+        emit Superprize(superprizeAmount, winner);
+        if (superprizeAmount > 0 && !winner.send(superprizeAmount))
+            (new DeliverFunds).value(superprizeAmount)(winner);
     }
     
     function setOldVersion(address payable oldAddress) external onlyOwner {
@@ -251,9 +263,7 @@ contract EthexJackpot {
         weeklyAmount = previousContract.weeklyAmount();
         monthlyAmount = previousContract.monthlyAmount();
         seasonalAmount = previousContract.seasonalAmount();
-        firstNumber = weeklyNumberStart;
-        for (uint256 i = firstNumber; i <= numberEnd; i++)
-            tickets[i] = previousContract.getAddress(i);
+        firstNumber = numberEnd;
         previousContract.migrate();
     }
     
@@ -295,7 +305,7 @@ contract EthexJackpot {
         seasonalNumberEndPrev = numberEnd;
     }
     
-    function getNumber(uint256 startNumber, uint256 endNumber, uint48 modulo) pure private returns (uint256) {
+    function getNumber(uint256 startNumber, uint256 endNumber, uint48 modulo) private pure returns (uint256) {
         return startNumber + modulo % (endNumber - startNumber + 1);
     }
 }
