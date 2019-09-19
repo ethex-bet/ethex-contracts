@@ -1,4 +1,4 @@
-pragma solidity ^0.5.0;
+pragma solidity 0.5.10;
 
 /**
  * (E)t)h)e)x) House Contract 
@@ -7,20 +7,10 @@ pragma solidity ^0.5.0;
  *  http://ethex.bet
  */
  
- contract EthexHouse {
-     address payable private owner;
-     
-     constructor() public {
-         owner = msg.sender;
-     }
-     
-     modifier onlyOwner {
-        require(msg.sender == owner);
-        _;
-    }
-    
-    function payIn() external payable {
-    }
+ import "./Ownable.sol";
+ 
+ contract EthexHouse is Ownable {
+    function payIn() external payable { }
     
     function withdraw() external onlyOwner {
         owner.transfer(address(this).balance);
