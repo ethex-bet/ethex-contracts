@@ -12,6 +12,7 @@ import "./EthexHouse.sol";
 import "./EthexSuperprize.sol";
 import "./DeliverFunds.sol";
 import "./Ownable.sol";
+import "./IERC20.sol";
 
 contract EthexLoto is Ownable {
     struct Bet {
@@ -68,7 +69,7 @@ contract EthexLoto is Ownable {
         superprizeAddress = superprize;
     }
     
-    function() external payable { }
+    function payIn() external payable { }
     
     function placeBet(bytes22 params) external payable {
         require(tx.origin == msg.sender);
@@ -217,7 +218,7 @@ contract EthexLoto is Ownable {
     
     function migrate(address payable newContract) external onlyOwner {
         require(getLength() == 0, "There are pending bets");
-        newContract.transfer(address(this).balance);
+        EthexLoto(newContract).payIn.value(address(this).balance)();
     }
 
     function setJackpot(address payable jackpot) external onlyOwner {
@@ -228,7 +229,11 @@ contract EthexLoto is Ownable {
         superprizeAddress = superprize;
     }
     
-    function length() public view returns (uint256) { return getLength(); }
+    function withdrawToken(IERC20 token, uint amount, address sendTo) external onlyOwner {
+        require(token.transfer(sendTo, amount));
+    }
+
+    function length() external view returns (uint256) { return getLength(); }
     
     function enqueue(uint256 blockNumber, uint256 amount, bytes16 id, bytes6 bet, address payable gamer) internal {
         last += 1;
@@ -288,6 +293,6 @@ contract EthexLoto is Ownable {
                 continue;
             }
         }
-        holdAmount = amount * coefficient * 2 / 375 / markedCount;
+        holdAmount = amount * coefficient * 8 / 15 / markedCount;
     }
 }
