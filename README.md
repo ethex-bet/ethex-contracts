@@ -48,7 +48,7 @@ The specific symbol (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F) | 1 : 16 | 
 
 If you select more symbols but guess less of them your prize rate will be lower than if you guess the exact number of cells, but you get the chance to win the Jackpot.
 
-_Note: prize rates are applied after deducting jackpot fee and house edge. The actual prize amount is limited to the current prize pool and is payed on the "first come first served" basis for all winners within the same block._
+_Note: prize rates are applied after deducting jackpot fee and house edge. The actual prize amount is limited to the current prize pool and is payed on the "first come first served" basis for all winners within the same block. Also note, that If the bet was not played, it can happen due to the network overload when the draw method call wasn’t mined within 256 blocks after the bet transaction due to Ethereum EVM limitation smart-contract has access only to the last 256 hashes, in this case, smart-contract returns the funds minus jackpot fee and house edge, but your bet still plays for the jackpots._
 
 ## Jackpots and Superprize
 
