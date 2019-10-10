@@ -29,7 +29,7 @@ contract("Ethex Loto", async (accounts) => {
 	let playerAccount = accounts[0];
 	let hosterAccount = accounts[1];
 
-	let txTestAmount = 1;
+	let txTestAmount = 10;
 
 	const deploy = async function () {
 
@@ -42,7 +42,7 @@ contract("Ethex Loto", async (accounts) => {
 		await superprize.setLoto(loto.address);
 
 		// Refill
-		await loto.sendTransaction({ from: hosterAccount, value: minBetAmount.mul(new BN(1000)), gas: 300000, gasPrice: gasPrice });
+		await loto.payIn.sendTransaction({ from: hosterAccount, value: minBetAmount.mul(new BN(1000)), gas: 300000, gasPrice: gasPrice });
 
 		lotoContract = loto;
 		jackpotContract = jackpot;
