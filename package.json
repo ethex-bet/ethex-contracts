@@ -17,6 +17,6 @@
     "truffle-assertions": "^0.9.1"
   },
   "dependencies": {
-    "bn.js": "^5.0.0"
+    "bn.js": "^5.2.3"
   }
 }
